@@ -43,13 +43,14 @@ void split(const string &s, vector<string>& sv, const char flag) {
 }
 
 string parseQuote(char* source, int st, int &ed) {
-	while (source[st] != '\"' && source[st] != '\n') st++;
-	if (source[st] == '\n') return string();
+	while (source[st] != '\"' && source[st] != '\n' && source[st] != 0) st++;
+	if (source[st] == '\n' || source[st] == 0) return string();
 	ed = ++st;
 	while (source[ed] != '\"') ed++;
 	return string(source, st, ed - st);
 }
 
+// returns string in range [begin, end].
 string genString(char *name, int begin, int end) {
 	return string(name + begin, end - begin + 1);
 	/*    string s="";
@@ -116,14 +117,16 @@ public:
 	vector<Tensor> tins, touts;
 	Type type;
 	char kernel[1024];
+	// here saves tensor_names prefixed by "d" i.e. A -> dA
+	vector<string> grad_tos;
 	vector<IndexBound> indexbound;
 	map<string, int> finalbound;
 
-	Case() :ins(vector<string>()), outs(vector<string>()) {
+	Case() :ins(vector<string>()), outs(vector<string>()), grad_tos(vector<string>()) {
 		memset(name, 0, sizeof(name));
 		memset(kernel, 0, sizeof(kernel));
 	}
-	Case(const char *filename) :ins(vector<string>()), outs(vector<string>()) {
+	Case(const char *filename) :ins(vector<string>()), outs(vector<string>()), grad_tos(vector<string>()) {
 		memset(name, 0, sizeof(name));
 		memset(kernel, 0, sizeof(kernel));
 
@@ -186,6 +189,18 @@ public:
 				memcpy(kernel, stmp.c_str(), stmp.length());
 				//	printf("%s\n", kernel);
 
+			}
+			else if ((tmp = strstr(buf, "\"grad_to\"")) != NULL) {
+				tmp += 10;	// length of String "grad_to":
+				int insidx = 0;
+				while(true) {
+					string stmp = parseQuote(tmp, insidx, itmp);
+					if (stmp.length()) {
+						grad_tos.push_back("d" + stmp);
+						insidx = itmp + 1;
+					}
+					else break;
+				}
 			}
 
 
@@ -397,32 +412,38 @@ public:
 	}
 
 	void parseIndex() {
-		char* tmp = kernel;
-		while ((tmp = strstr(tmp, "<")) != NULL) {
-			char* tmp2 = strstr(tmp, ">");
-			if (*(tmp2 + 1) == '[') {	// a tensor
-				string CList(tmp + 1, tmp2 - tmp - 1);
-				tmp = tmp2 + 1;
-				tmp2 = strstr(tmp, "]");
-				string AList(tmp + 1, tmp2 - tmp - 1);
-				vector<string> vCList, vAList;
-				split(CList, vCList, ',');
-				split(AList, vAList, ',');
-				for (size_t i = 0; i < vCList.size(); i++) {
-					IndexBound Itmp(vAList[i].c_str(), atoi(vCList[i].c_str()));
-					int flag = 0;
-					for (size_t j = 0; j < indexbound.size(); j++) {
-						if (Itmp == indexbound[j]) { flag = 1; break; }
+		vector<string> VTMP;
+		VTMP.insert(VTMP.end(), ins.begin(), ins.end());
+		VTMP.insert(VTMP.end(), outs.begin(), outs.end());
+
+		for (size_t idx = 0; idx < VTMP.size(); idx++){
+			char* tmp = kernel;
+			while ((tmp = strstr(tmp, (VTMP[idx] + "<").c_str())) != NULL) {
+				tmp = strstr(tmp, "<");
+				char* tmp2 = strstr(tmp, ">");
+				if (*(tmp2 + 1) == '[') {	// a tensor
+					string CList(tmp + 1, tmp2 - tmp - 1);
+					tmp = tmp2 + 1;
+					tmp2 = strstr(tmp, "]");
+					string AList(tmp + 1, tmp2 - tmp - 1);
+					vector<string> vCList, vAList;
+					split(CList, vCList, ',');
+					split(AList, vAList, ',');
+					for (size_t i = 0; i < vCList.size(); i++) {
+						IndexBound Itmp(vAList[i].c_str(), atoi(vCList[i].c_str()));
+						int flag = 0;
+						for (size_t j = 0; j < indexbound.size(); j++) {
+							if (Itmp == indexbound[j]) { flag = 1; break; }
+						}
+						if (!flag)
+							indexbound.push_back(IndexBound(vAList[i].c_str(), atoi(vCList[i].c_str())));
 					}
-					if (!flag)
-						indexbound.push_back(IndexBound(vAList[i].c_str(), atoi(vCList[i].c_str())));
 				}
+
+				tmp++;		// turn to next finding
 			}
-
-			tmp++;		// turn to next finding
 		}
-
-
+		
 	/*	printf("IndexBounds: \n");
 		for (int i = 0; i < indexbound.size(); i++) {
 			printf("%s<%d\n", indexbound[i].name, indexbound[i].upperbound);

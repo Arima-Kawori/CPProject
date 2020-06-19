@@ -60,9 +60,11 @@ Group handleP(Case c) {
 		int pre = 0, dep = 0;
 		for (size_t j = 1; j < R.size(); ++j) {
 			switch (R[j]) {
-			case '<':case '(':case '[':
+		//	case '<':
+				case '(':case '[':
 				++dep;		break;
-			case '>':case ')':case ']':
+		//	case '>':
+				case ')':case ']':
 				--dep;		break;
 			case '+':case '-':
 				if (dep == 0) {
