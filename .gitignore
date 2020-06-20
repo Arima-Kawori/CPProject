@@ -1,3 +1,8 @@
 build
+sifiles
+project1/cases
+project1/kernels
+project2/cases
+project2/kernels
 .DS_Store
 .vscode
