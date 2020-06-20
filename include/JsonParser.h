@@ -310,7 +310,7 @@ public:
 				map<string, int>::iterator it = finalbound.find(s);
 				if (it == finalbound.end())
 					finalbound.insert(make_pair(s, indexbound.upperbound));
-				else if (it->second < indexbound.upperbound)
+				else if (it->second > indexbound.upperbound)
 				{
 					finalbound.erase(it);
 					finalbound.insert(make_pair(s, indexbound.upperbound));

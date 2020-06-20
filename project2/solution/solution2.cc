@@ -47,17 +47,15 @@ Group handleP(Case c) {
 	vector<Stmt> Loop_Nest;
 
 	vector<string> sv;
-	string L, R, tmp, cur, tmpL;
+	string L, R, tmp, cur;
 
 	for (int i = 0; i < vStmt00.size(); ++i) {
 		int equalloc = vStmt00[i].find('=');
 		L = vStmt00[i].substr(0, equalloc);
 		R = vStmt00[i].substr(equalloc + 1);
-		tmpL = "tmp_" + L;
-		cur = tmpL + "=0";
-		vStmt.push_back(cur);
 		R = "+" + R;
 		int pre = 0, dep = 0;
+		bool first = true;
 		for (size_t j = 1; j < R.size(); ++j) {
 			switch (R[j]) {
 		//	case '<':
@@ -68,20 +66,28 @@ Group handleP(Case c) {
 				--dep;		break;
 			case '+':case '-':
 				if (dep == 0) {
-					cur = tmpL + "=" + tmpL + R.substr(pre, j - pre);
+				        if (first)
+				        {
+				        first = false;
 					pre = j;
-					vStmt.push_back(cur);
+				        cur = L + "=" + R.substr(pre + 1, j - pre - 1);
+				        }
+					else {
+					cur = L + "=" + L + R.substr(pre, j - pre);
+					pre = j;
+					vStmt.push_back(cur);}
 				}
 				break;
 			default:
 				break;
 			}
 		}
-		cur = tmpL + "=" + tmpL + R.substr(pre, R.size() - pre);
-		vStmt.push_back(cur);
-
-		cur = L + "=" + tmpL;
-		vStmt.push_back(cur);
+		if (first)
+		{
+		    first = false;
+		}else{
+		cur = L + "=" + L + R.substr(pre, R.size() - pre);
+		vStmt.push_back(cur);}
 	}
 
 	for (size_t i = 0; i < vStmt.size(); i++) {
@@ -388,8 +394,10 @@ Expr handleCond(string s) {
 	}
 }
 
+extern void generate();
 
 int main() {
+        generate();
 
 	for (int i = 1; i <= 10; i++) {
 		string curFile(filename);
