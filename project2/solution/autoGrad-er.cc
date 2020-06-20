@@ -265,8 +265,8 @@ Expr handleIdExpr(string s) {
 
 	char binaryOperator = 0;
 	Expr Id;						// for "IdExpr ::= Id"
-	for (size_t i = 0; i < s.length(); i++) {	// handle "+" firstly
-		if (s[i] == '+') {
+	for (size_t i = 0; i < s.length(); i++) {	// handle "+" & "-" firstly
+		if (s[i] == '+' || s[i] == '-') {
 			binaryOperator = s[i];
 			binaryLeft = handleIdExpr(s.substr(0, i));
 			binaryRight = handleIdExpr(s.substr(i + 1));
@@ -290,6 +290,7 @@ Expr handleIdExpr(string s) {
 		BinaryOpType opType;
 		switch (binaryOperator) {
 		case '+':	opType = BinaryOpType::Add;	break;
+		case '-':	opType = BinaryOpType::Sub; break;
 		case '*':	opType = BinaryOpType::Mul;	break;
 		case '/':	opType = BinaryOpType::Div;	break;
 		case '%':	opType = BinaryOpType::Mod;	break;
