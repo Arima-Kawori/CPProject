@@ -1,0 +1,7 @@
+{
+  "name": "grad_case8",
+  "ins": ["dB"],
+  "outs": ["dA"],
+  "data_type": "float",
+  "kernel": "dA<2, 16>[i, j] = dB<32>[i * 16 + j];"
+}

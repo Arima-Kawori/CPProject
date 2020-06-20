@@ -1,7 +1,8 @@
 {
     "name": "grad_case7",
-    "ins": ["dB"],
-    "outs": ["dA"],
+    "ins": ["A"],
+    "outs": ["B"],
     "data_type": "float",
-    "kernel": "dA<32, 16>[j, i] = dB<16, 32>[i, j];"
+    "kernel": "B<16, 32>[i, j] = A<32, 16>[j, i];",
+    "grad_to": ["A"]
 }

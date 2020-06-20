@@ -393,7 +393,8 @@ int main() {
 
 	for (int i = 1; i <= 10; i++) {
 		string curFile(filename);
-		curFile += std::to_string(i) + ".json";
+		//curFile += std::to_string(i) + ".json";
+		curFile += std::to_string(i) + "_graded.json";
 		string curOutput(outputfile);
 		curOutput += std::to_string(i) + ".cc";
 		try {

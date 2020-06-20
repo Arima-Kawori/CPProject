@@ -1,0 +1,7 @@
+{
+    "name": "grad_case6",
+    "ins": ["C", "dA"],
+    "outs": ["dB"],
+    "data_type": "float",
+    "kernel": "dB<2, 16, 7, 7>[n, c, h, w] = select((h - p >= 0) && (w - q >= 0) && (h - p < 3) && (w - q < 3), dA<2, 8, 5, 5>[n, k, p, q] * C<8, 16, 3, 3>[k, c, h - p, w - q], 0.0);"
+}

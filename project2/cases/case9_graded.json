@@ -1,0 +1,8 @@
+{
+  "name": "grad_case9",
+  "ins": ["dB"],
+  "outs": ["dA"],
+  "data_type": "float",
+  "kernel": "dA<4>[i] = dB<4, 6>[i, j];",
+  "grad_to": ["A"]
+}
