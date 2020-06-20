@@ -265,7 +265,7 @@ Expr handleIdExpr(string s) {
 
 	char binaryOperator = 0;
 	Expr Id;						// for "IdExpr ::= Id"
-	for (size_t i = 0; i < s.length(); i++) {	// handle "+" & "-" firstly
+	for (size_t i = 0; i < s.length(); i++) {	// handle "+" firstly
 		if (s[i] == '+' || s[i] == '-') {
 			binaryOperator = s[i];
 			binaryLeft = handleIdExpr(s.substr(0, i));
@@ -290,7 +290,7 @@ Expr handleIdExpr(string s) {
 		BinaryOpType opType;
 		switch (binaryOperator) {
 		case '+':	opType = BinaryOpType::Add;	break;
-		case '-':	opType = BinaryOpType::Sub; break;
+		case '-':	opType = BinaryOpType::Sub;	break;
 		case '*':	opType = BinaryOpType::Mul;	break;
 		case '/':	opType = BinaryOpType::Div;	break;
 		case '%':	opType = BinaryOpType::Mod;	break;
@@ -320,7 +320,7 @@ Expr handleIdExpr(string s) {
 					currentIndexUsed = true;	break;
 				}
 			}
-			if (!currentIndexUsed)
+			if (!currentIndexUsed && s.size() > 0)
 				vUsedIndex.push_back(s);
 			return Id;
 
@@ -392,13 +392,14 @@ Expr handleCond(string s) {
 int main() {
 
 	for (int i = 1; i <= 10; i++) {
-
 		string curFile(filename);
-		curFile += std::to_string(i) + ".json";
+		//curFile += std::to_string(i) + ".json";
+		curFile += std::to_string(i) + "_graded.json";
 		string curOutput(outputfile);
 		curOutput += std::to_string(i) + ".cc";
 		try {
 			c = Case(curFile.c_str());
+
 		}
 		catch (...) {
 			printf("File %s does not exist\n", curFile.c_str());
@@ -406,20 +407,15 @@ int main() {
 		}
 
 		IndexList.clear();
+
 		for (auto it = c.finalbound.begin(); it != c.finalbound.end(); it++) {
+
 			Expr Domtemp = Dom::make(int_type, 0, it->second);
 			Expr Indextemp = Index::make(int_type, it->first, Domtemp, IndexType::Spatial);
 			IndexList.insert(make_pair(it->first, Indextemp));
 		}
 
 		Group kernel = handleP(c);
-		// visitor
-		IRVisitor visitor;
-		kernel.visit_group(&visitor);
-
-		// mutator
-		IRMutator mutator;
-		kernel = mutator.mutate(kernel);
 
 		// printer
 		IRPrinter printer;

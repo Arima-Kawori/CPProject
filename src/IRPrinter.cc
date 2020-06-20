@@ -128,13 +128,13 @@ void IRPrinter::visit(Ref<const Compare> op) {
 
 // Modified
 void IRPrinter::visit(Ref<const Select> op) {
-    oss << "(";
+    oss << "((";
     (op->cond).visit_expr(this);
     oss << ") ? (";
     (op->true_value).visit_expr(this);
     oss << ") : (";
     (op->false_value).visit_expr(this);
-    oss << ")";
+    oss << "))";
 }
 
 
