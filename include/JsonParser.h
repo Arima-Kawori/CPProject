@@ -206,8 +206,6 @@ public:
 
 		}
 		fclose(file);
-
-	//	print();
 		parseTensor();
 		parseIndex();
 		for (size_t i = 0; i < indexbound.size(); i++) {
@@ -237,6 +235,8 @@ public:
 			Tensor Ttmp;
 			Ttmp.type = type;
 			tmpptr = strstr(kernel, (ins[i] + "<").c_str());
+			while (tmpptr > kernel && *(tmpptr - 1) == 'd')
+			    tmpptr = strstr(tmpptr + 1,  (ins[i] + "<").c_str());
 			//	if (!tmpptr) { printf("??????\n"); return; }
 			while (*tmpptr != '<') tmpptr++;
 			tmpptr++;
@@ -283,117 +283,26 @@ public:
 		}
 		for (int i = 0; i < length; i++) {
 			if (indexbound.name[i] == '(')
-				flag += 1;
+				return;
 			if (indexbound.name[i] == ')')
-				flag -= 1;
-			if (flag == 0 && indexbound.name[i] == '+') {
-				string s = genString(indexbound.name, i + 1, length - 1);
-				int IntV = atoi(s.c_str());
-				if (IntV != 0)
-				{
-					char newname[16];
-					for (int j = 0; j < 16; j++)
-					{
-						if (j < i)
-							newname[j] = indexbound.name[j];
-						else
-							newname[j] = 0;
-					}
-					IndexBound indexbound0 = *new IndexBound(newname, (indexbound.upperbound) - IntV);
-					handleIndexBound(indexbound0);
-				} else {
-					char newname1[16];
-					for (int j = 0; j < 16; j++) {
-						if (j < i)
-							newname1[j] = indexbound.name[j];
-						else
-							newname1[j] = 0;
-					}
-					char newname2[16];
-					for (int j = 0; j < 16; j++) {
-						if (i + j + 1 < length)
-							newname2[j] = indexbound.name[i + j + 1];
-						else
-							newname2[j] = 0;
-					}
-					IndexBound indexbound1 = *new IndexBound(newname1, indexbound.upperbound);
-					IndexBound indexbound2 = *new IndexBound(newname2, indexbound.upperbound);
-					handleIndexBound(indexbound1);
-					handleIndexBound(indexbound2);
-				}
+				return;
+			if (indexbound.name[i] == '+') {
+				
 				return;
 			}
-			if (flag == 0 && indexbound.name[i] == '-') {
-				char newname1[16];
-				for (int j = 0; j < 16; j++) {
-					if (j < i)
-						newname1[j] = indexbound.name[j];
-					else
-						newname1[j] = 0;
-				}
-				char newname2[16];
-				for (int j = 0; j < 16; j++) {
-					if (i + j + 1 < length)
-						newname2[j] = indexbound.name[i + j + 1];
-					else
-						newname2[j] = 0;
-				}
-				IndexBound indexbound1 = *new IndexBound(newname1, indexbound.upperbound);
-				IndexBound indexbound2 = *new IndexBound(newname2, indexbound.upperbound);
-				handleIndexBound(indexbound1);
-				handleIndexBound(indexbound2);
+			if (indexbound.name[i] == '-') {
 				return;
 			}
-			if (flag == 0 && indexbound.name[i] == '*') {
-				string s = genString(indexbound.name, i + 1, length - 1);
-				int IntV = atoi(s.c_str());
-				char newname[16];
-				for (int j = 0; j < 16; j++) {
-					if (j < i)
-						newname[j] = indexbound.name[j];
-					else
-						newname[j] = 0;
-				}
-				IndexBound indexbound0 = *new IndexBound(newname, (indexbound.upperbound) / IntV);
-				handleIndexBound(indexbound0);
+			if (indexbound.name[i] == '*') {
 				return;
 			}
-			if (flag == 0 && indexbound.name[i] == '/') {
-				string s = genString(indexbound.name, i + 2, length - 1);
-				int IntV = atoi(s.c_str());
-				char newname[16];
-				for (int j = 0; j < 16; j++) {
-					if (j < i)
-						newname[j] = indexbound.name[j];
-					else
-						newname[j] = 0;
-				}
-				IndexBound indexbound0 = *new IndexBound(newname, (indexbound.upperbound)*IntV);
-				handleIndexBound(indexbound0);
+			if (indexbound.name[i] == '/') {
 				return;
 			}
-			if (flag == 0 && indexbound.name[i] == '%') {
-				char newname1[16];
-				for (int j = 0; j < 16; j++) {
-					if (j < i)
-						newname1[j] = indexbound.name[j];
-					else
-						newname1[j] = 0;
-				}
-				IndexBound indexbound1 = *new IndexBound(newname1, indexbound.upperbound);
-				handleIndexBound(indexbound1);
+			if (indexbound.name[i] == '%') {
 				return;
 			}
-			if (i == length - 1 && indexbound.name[i] == ')') {
-				char newname1[16];
-				for (int j = 0; j < 16; j++) {
-					if (j < length - 2)
-						newname1[j] = indexbound.name[j + 1];
-					else
-						newname1[j] = 0;
-				}
-				IndexBound indexbound1 = *new IndexBound(newname1, indexbound.upperbound);
-				handleIndexBound(indexbound1);
+			if (indexbound.name[i] == ')') {
 				return;
 			}
 			if (i == length - 1) {
@@ -401,7 +310,7 @@ public:
 				map<string, int>::iterator it = finalbound.find(s);
 				if (it == finalbound.end())
 					finalbound.insert(make_pair(s, indexbound.upperbound));
-				else if (it->second > indexbound.upperbound)
+				else if (it->second < indexbound.upperbound)
 				{
 					finalbound.erase(it);
 					finalbound.insert(make_pair(s, indexbound.upperbound));

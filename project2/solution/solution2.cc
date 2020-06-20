@@ -320,7 +320,7 @@ Expr handleIdExpr(string s) {
 					currentIndexUsed = true;	break;
 				}
 			}
-			if (!currentIndexUsed)
+			if (!currentIndexUsed && s.size() > 0)
 				vUsedIndex.push_back(s);
 			return Id;
 
@@ -392,13 +392,13 @@ Expr handleCond(string s) {
 int main() {
 
 	for (int i = 1; i <= 10; i++) {
-
 		string curFile(filename);
 		curFile += std::to_string(i) + ".json";
 		string curOutput(outputfile);
 		curOutput += std::to_string(i) + ".cc";
 		try {
 			c = Case(curFile.c_str());
+
 		}
 		catch (...) {
 			printf("File %s does not exist\n", curFile.c_str());
@@ -406,20 +406,15 @@ int main() {
 		}
 
 		IndexList.clear();
+
 		for (auto it = c.finalbound.begin(); it != c.finalbound.end(); it++) {
+
 			Expr Domtemp = Dom::make(int_type, 0, it->second);
 			Expr Indextemp = Index::make(int_type, it->first, Domtemp, IndexType::Spatial);
 			IndexList.insert(make_pair(it->first, Indextemp));
 		}
 
 		Group kernel = handleP(c);
-		// visitor
-		IRVisitor visitor;
-		kernel.visit_group(&visitor);
-
-		// mutator
-		IRMutator mutator;
-		kernel = mutator.mutate(kernel);
 
 		// printer
 		IRPrinter printer;

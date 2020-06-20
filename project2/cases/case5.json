@@ -1,8 +1,7 @@
 {
     "name": "grad_case5",
-    "ins": ["B", "C", "D"],
-    "outs": ["A"],
+    "ins": ["C", "D", "dA"],
+    "outs": ["dB"],
     "data_type": "float",
-    "kernel": "A<16, 32>[i, j] =  B<16, 32, 4>[i, k, l] * C<32, 32>[k, j] * D<4, 32>[l, j];",
-    "grad_to": ["B"]
+    "kernel": "dB<16, 32, 4>[i, k, l] = dA<16, 32>[i, j] * C<32, 32>[k, j] * D<4, 32>[l, j];"
 }
