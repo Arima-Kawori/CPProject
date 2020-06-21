@@ -236,28 +236,32 @@ Stmt handleS(string s)
 
 
 	// now all indices in IndicesInS.
-	// this "for" handles indexes in form Id op IntV.
+	// this "for" handles indexes in form Id op IntV or Id op Id.
 	//  replacedIndex will be named 'a~z' + '0~9'.
 	//  for Id op Id, select stmt may be used.
 	
 
 	for (i = 0; i < Indices.size(); i++) {
 		if (Indices[i].inLHS == false) continue;
-		string curId; char op = 0; int IntV = -1;
+		string curId; char op = 0; int IntV = -1; string discardedId;
 		string &curIndex = Indices[i].index;
 		int curlen = curIndex.length();
 		for (int j = 0; j < curlen; j++) {
 			char cur = curIndex[j];
-			if (cur == '+' || cur == '/' || cur == '%') {
+			if (cur == '+' || cur == '-' || cur == '/' || cur == '%') {
 				op = cur;
 				if (cur == '/') j++;
+				curId = curIndex.substr(0, (cur == '/' ? j - 1: j));
 				if (curIndex[j + 1] >= '0' && curIndex[j + 1] <= '9') {
 					IntV = atoi(curIndex.substr(j + 1).c_str());
-					curId = curIndex.substr(0, (cur == '/' ? j - 1: j));
+				}
+				else {
+					discardedId = curIndex.substr(j + 1);
 				}
 				break;
 			}
 		}
+		if (op) {
 		if (IntV != -1) {
 			Indices[i].replacedIndex = string(1, curAlphabet) + string(1, curNum);
 			if (++curAlphabet == ('z' + 1)) { curAlphabet = 'a'; curNum++; }
@@ -274,6 +278,18 @@ Stmt handleS(string s)
 					Replaced[curId].name.push_back(Indices[i].replacedIndex + "-" + std::to_string(IntV));
 				}
 				break; }
+			case '-': {
+				Indices[i].replacedLowerbound = 0;
+				Indices[i].replacedUpperbound = c.finalbound[curId.c_str()] - IntV;
+				auto tmpit = Replaced.find(curId);
+				if (tmpit != Replaced.end()) {
+					tmpit->second.name.push_back(Indices[i].replacedIndex + "+" + std::to_string(IntV));
+				}
+				else {
+					Replaced[curId] = replaced();
+					Replaced[curId].name.push_back(Indices[i].replacedIndex + "+" + std::to_string(IntV));
+				}
+				break; }	
 			case '/': {
 				Indices[i].replacedUpperbound = c.finalbound[curId.c_str()] / IntV;
 				auto tmpit = Replaced.find(curId);
@@ -299,10 +315,35 @@ Stmt handleS(string s)
 			}
 
 		}
+		else {		// Id + Id
+			Indices[i].replacedIndex = string(1, curAlphabet) + string(1, curNum);
+			if (++curAlphabet == ('z' + 1)) { curAlphabet = 'a'; curNum++; }
+			if (op == '+') {		// "-" not handled
+				Indices[i].replacedUpperbound = c.finalbound[curId.c_str()] + c.finalbound[discardedId.c_str()] - 1;
+				auto tmpit = Replaced.find(curIndex);
+				if (tmpit != Replaced.end()) {
+					tmpit->second.name.push_back(Indices[i].replacedIndex);
+				}
+				else {
+					Replaced[curIndex] = replaced();
+					Replaced[curIndex].name.push_back(Indices[i].replacedIndex);
+				}
+				tmpit = Replaced.find(discardedId);
+				if (tmpit != Replaced.end()) {
+					tmpit->second.name.push_back(Indices[i].replacedIndex + "-" + curId);
+				}
+				else {
+					Replaced[discardedId] = replaced();
+					Replaced[discardedId].name.push_back(Indices[i].replacedIndex + "-" + curId);
+				}
+			}
+		}
+		}
 		else Indices[i].replacedIndex = Indices[i].index;
 	}
 
-
+	
+	
 	for (auto it = Replaced.begin(); it != Replaced.end(); it++) {
 		string curName = it->first, curResult = it->second.name[0];
 		for (int j = 1; j < (int)(it->second.name.size()); j++) {
@@ -327,7 +368,28 @@ Stmt handleS(string s)
 		int substrLoc;
 		while ((substrLoc = newKernel.find(it->first)) != newKernel.npos) {
 			if (isalnum(newKernel[substrLoc - 1]) || isalnum(newKernel[substrLoc + it->first.length()])) continue;			// not an index id
+			int prevOpLoc = substrLoc, endOfCurIndex = substrLoc;
 			newKernel.replace(substrLoc, it->first.length(), "(" + it->second + ")");
+			string select = "^(";
+			if (c.finalbound.find(it->first) != c.finalbound.end()) {
+
+				// find the location to insert "^(conds?"
+				while (newKernel[prevOpLoc] != '<') 
+					prevOpLoc--;
+				prevOpLoc--;
+				while (isalnum(newKernel[prevOpLoc]) || newKernel[prevOpLoc] == '_') 
+					prevOpLoc--;
+				
+				select += "(" + it->second + ">=0)&&" + "(" + it->second + "<" + std::to_string(c.finalbound[it->first]) + "),";
+
+				newKernel = newKernel.substr(0, prevOpLoc + 1) + select + newKernel.substr(prevOpLoc + 1);
+				// find the location to insert ":0)"
+				while (newKernel[endOfCurIndex] != ']')
+					endOfCurIndex++;
+
+				newKernel = newKernel.substr(0, endOfCurIndex + 1) + ",0)" + newKernel.substr(endOfCurIndex + 1);
+			}
+			
 		}
 	}
 
@@ -400,7 +462,7 @@ Expr handleRHS(string s) {
 				return FloatImm::make(float_type, atof(s.c_str()));
 			else return IntImm::make(int_type, atoi(s.c_str()));
 		}
-		else if (s[0] == 's') {				// RHS ::= Select
+		else if (s[0] == '^') {				// RHS ::= Select
 			return handleSelect(s);
 		}
 		else {
@@ -529,10 +591,10 @@ Expr handleIdExpr(string s) {
 }
 
 Expr handleSelect(string s) {
-	// for Select ::= select(Cond, VTrue, VFalse), get rid of 
-	//  "select(" and ")", and then separate into 3 strings by ','
+	// for Select ::= ^(Cond, VTrue, VFalse), get rid of 
+	//  "^(" and ")", and then separate into 3 strings by ','
 	int slen = s.length();
-	s = s.substr(7, slen - 8);
+	s = s.substr(2, slen - 3);
 	int comma1 = s.find(','), comma2;
 	string sCond = s.substr(0, comma1);
 	int inBracket = 0;
@@ -623,48 +685,6 @@ int main() {
 		std::string code = printer.print(kernel);
 		
 		string tmptmp("#include \"../run2.h\"\n\n");
-		
-		for (size_t i = 0; i < c.tins.size(); i++) {
-			Tensor &cur = c.tins[i];
-			tmptmp += "static ";
-			tmptmp += cur.type.is_float()?"float tmp_":"int tmp_";
-			tmptmp += cur.name;
-			if (cur.tensor_type == TENSOR) {
-				tmptmp += "[";
-				for (size_t j = 0; j < cur.dim_size.size(); j++) {
-					tmptmp += std::to_string(cur.dim_size[j]);
-					if (j != cur.dim_size.size() - 1)
-						tmptmp += "][";
-				}
-				tmptmp += "]";
-			}
-			tmptmp += ";\n";
-		}
-		
-		for (size_t i = 0; i < c.touts.size(); i++) {
-			bool inIns = false;
-			for (size_t j = 0; j < c.tins.size(); j++) {
-				if (!strcmp(c.touts[i].name, c.tins[j].name)) {
-					inIns = true;	break;
-				}
-			}
-			if (inIns) continue;
-
-			Tensor &cur = c.touts[i];
-			tmptmp += "static ";
-			tmptmp += cur.type.is_float()?"float tmp_":"int tmp_";
-			tmptmp += cur.name;
-			if (cur.tensor_type == TENSOR) {
-				tmptmp += "[";
-				for (size_t j = 0; j < cur.dim_size.size(); j++) {
-					tmptmp += std::to_string(cur.dim_size[j]);
-					if (j != cur.dim_size.size() - 1)
-						tmptmp += "][";
-				}
-				tmptmp += "]";
-			}
-			tmptmp += ";\n";
-		}
 		
 		code = tmptmp + code;
 		FILE* file = fopen(curOutput.c_str(), "w");
