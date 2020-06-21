@@ -20,6 +20,7 @@ using std::make_pair;
 using namespace Boost::Internal;
 
 const char *filename = "./cases/case";
+const char *midfile = "./kernels/mid_case";
 const char *outputfile = "./kernels/grad_case";
 
 map<string, Expr> IndexList;		// Expr for Index
@@ -403,7 +404,7 @@ int main() {
 		string curFile(filename);
 		//curFile += std::to_string(i) + ".json";
 		curFile += std::to_string(i) + "_graded.json";
-		string curOutput(outputfile);
+		string curOutput(midfile);
 		curOutput += std::to_string(i) + ".cc";
 		try {
 			c = Case(curFile.c_str());
@@ -479,5 +480,124 @@ int main() {
 		fputs(code.c_str(), file);
 		fclose(file);
 		//	std::cout << code;
+        
+        string infile2=midfile+std::to_string(i)+".cc";
+        string outfile2=outputfile+std::to_string(i)+".cc";
+        
+        FILE *input2=fopen(infile2.c_str(),"r");
+        FILE *output2=fopen(outfile2.c_str(),"w");
+        
+        //input2=fopen(infile2,"r");
+        //output2=fopen(outfile2,"w");
+        
+        char eq[1024];
+        char def[1024];
+        
+        while (fgets(eq,1024,input2)!=NULL)
+        {
+            int len=strlen(eq);
+            
+            if ( (eq[0]=='v') && (eq[1]=='o') && (eq[2]=='i') && (eq[3]=='d') )
+                strcpy(def,eq);
+            
+            bool flag1=false, flag2=false;
+            
+            for (int k=0;k<len;++k)
+            {
+                if ( eq[k]=='[' ) flag1=true;
+                if ( eq[k]=='=' ) flag2=true;
+            }
+            
+            if ( flag1 && flag2 )
+            {
+                for (int pm=0;pm<len;++pm)
+                {
+                    if (eq[pm]=='-')
+                    {
+                        bool flagm=true;
+                        int pl=pm,pr=pm;
+                        while ( pl>=0 && eq[pl]!='[' && eq[pl]!=']' ) --pl;
+                        if ( eq[pl] != '[' ) flagm=false;
+                        while ( pr<len && eq[pr]!='[' && eq[pr]!=']' ) ++pr;
+                        if ( eq[pr] != ']' ) flagm=false;
+                        if (flagm)
+                        {
+                            
+                            int seq=1;
+                            int ppx=pl;
+                            while ( eq[ppx]!='[' || eq[ppx-1]==']' )
+                            {
+                                if (eq[ppx]=='[') ++seq;
+                                --ppx;
+                            }
+                            
+                            --ppx;
+                            string aname="";
+                            while (isalpha(eq[ppx]))
+                            {
+                                aname=eq[ppx]+aname;
+                                --ppx;
+                            }
+                            
+                            int lenname=aname.size();
+                            int lendef=strlen(def);
+                            
+                            int ppy,ppz;
+                            /*
+                            for (ppy=0;ppy<lendef-lenname;++ppy)
+                                if (strcmp(substr(ppy,lenname),aname.c_str())==0) break;*/
+                            char * pppp=strstr(def,aname.c_str());
+                            ppy=pppp-def;
+                            
+                            /*
+                            fputs("//",output2);
+                            fputs(aname.c_str(),output2);
+                            fprintf(output2," %d %d",ppy,seq);
+                            fputs("\n",output2);
+                            */
+                            
+                            int num=0;
+                            while (num<seq)
+                            {
+                                ++ppy;
+                                if (def[ppy]=='[') ++num;
+                            }
+                            ppz=ppy;
+                            while (def[ppz]!=']') ++ppz;
+                            
+                            string ooo="if (";
+                            for (int po=pl+1;po<pr;++po)
+                                ooo+=eq[po];
+                            
+                            ooo+=">=0 && ";
+                            for (int po=pl+1;po<pr;++po)
+                                ooo+=eq[po];
+                            ooo+="<";
+                            
+                            for (int po=ppy+1;po<ppz;++po)
+                                ooo+=def[po];
+                            ooo+=")";
+                            
+                            //ooo+=">=0)";
+                            fputs(ooo.c_str(),output2);
+                            fputs("\n",output2);
+                        }
+                    }
+                    
+                }
+            }
+            
+            fputs(eq,output2);
+        }
+        
+        fclose(input2);
+        fclose(output2);
+        
+        FILE *output3=fopen(infile2.c_str(),"w");
+        
+        fputs(" ",output3);
+        
+        fclose(output3);
+        
 	}
 }
