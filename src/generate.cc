@@ -21,7 +21,7 @@ char instr[10][50] = {"./cases/case1.json",
                   "./cases/case10.json"};
 
 char outstr[10][50] = {"./cases/case1_graded.json", 
-                "./cases/case2_graded.json",
+	             "./cases/case2_graded.json",
                      "./cases/case3_graded.json",
                      "./cases/case4_graded.json",
                      "./cases/case5_graded.json",
@@ -243,172 +243,17 @@ string getgrad(int st, int ed)
         }
     }
 }
-/*
-void handleSpaces(string &s) {
-    for (size_t i = 0; i < s.length(); i++) {
-        if (s[i] == ' ') {
-            s.erase(i, 1);
-            i--;
-        }
-    }
-}
-
-// Get rid of all flag chars and split into several strings into "sv".
-void split(const string &s, vector<string>& sv, const char flag) {
-    sv.clear();
-    std::istringstream iss(s);
-    string temp;
-    
-    while (std::getline(iss, temp, flag))
-        sv.push_back(temp);
-    return;
-}
-*/
-
-void replace(string &place, string sf, string st)
-{
-    int be=0,en;
-    int l=sf.size();
-    while (be+l<=place.size())
-    {
-        if (place.substr(be,l)==sf)
-        {
-            en=be+sf.size();
-            if ( (!isalpha(place[be-1])) && (!isalpha(place[en])) )
-            {
-                place.erase(be,en-be);
-                place.insert(be,st);
-            }
-        }
-        ++be;
-    }
-    
-}
 
 string getnow()
 {
-    //printf("%s\n", ker.c_str());
-    
-    
+   printf("%s\n", ker.c_str());
     int i = 0;
     while (ker[i] != '=') i++;
     string nowindex = "";
-    //now_pos = ker.find("[")-1;
     for (int j = now_pos + 1; ker[j] != ']'; j++)
         nowindex = nowindex + ker[j];
     nowindex = nowindex + "]";
-    
-    string ker2="d" + now_grad + nowindex + "=d" + now_grad + nowindex + "+d" + ker.substr(0, i) + "*(" + getgrad(i + 1, ker.size() - 2) + ")";
-   
-    //printf("%s %d\n",now_grad.c_str(),now_pos);
-    printf("%s\n", ker2.c_str());
-    
-    int pos=ker2.find("=");
-    string LHS=ker2.substr(0,pos);
-    string RHS=ker2.substr(pos+1,ker2.size()-pos-1);
-    int pos1=LHS.find("[");
-    int pos2=LHS.find("]");
-    
-    vector<string> idxL;
-    string curL="";
-    
-    idxL.clear();
-    
-    for (int i=pos1+1;i<=pos2;++i)
-        if ( (LHS[i]!=',') && (LHS[i]!=']') ) curL=curL+LHS[i];
-        else
-        {
-            idxL.push_back(curL);
-            curL="";
-        }
-    
-//    for (int i=0;i<idxL.size();++i)
-//        printf("%s,",idxL[i].c_str());
-//    printf("\n");
-    
-    int numdiv=0;
-    string expdiv[10][15]; // A / B = C ...... D  -- C = A // B  -- D = A % B
-    
-
-    
-    for (int i=0;i<idxL.size();++i)
-    {
-        int pp1=idxL[i].find("+");
-        int pp2=idxL[i].find("-");
-        int pp3=idxL[i].find("//");
-        int pp4=idxL[i].find("%");
-        
-        string op1,op2,newstr;
-        
-        if (pp1!=-1)
-        {
-            op1=idxL[i].substr(0,pp1);
-            op2=idxL[i].substr(pp1+1,idxL[i].size()-pp1-1);
-            newstr=op1+"add"+op2;
-            replace(LHS,idxL[i],newstr);
-            replace(RHS,idxL[i],newstr);
-            replace(RHS,op1,newstr+"-"+op2);
-        }
-        else if (pp2!=-1)
-        {
-            op1=idxL[i].substr(0,pp2);
-            op2=idxL[i].substr(pp2+1,idxL[i].size()-pp2-1);
-            newstr=op1+"minus"+op2;
-            replace(LHS,idxL[i],newstr);
-            replace(RHS,idxL[i],newstr);
-            replace(RHS,op1,newstr+"+"+op1);
-        }
-        else if (pp3!=-1)
-        {
-            op1=idxL[i].substr(0,pp3);
-            op2=idxL[i].substr(pp3+2,idxL[i].size()-pp3-2);
-            newstr=op1+"div"+op2;
-            int kkk=-1;
-            for (int j=1;j<=numdiv;++j)
-                if ( (op2==expdiv[j][1]) && (op1==expdiv[j][0]) ) kkk=j;
-            if (kkk==-1)
-            {
-                ++numdiv;
-                expdiv[numdiv][1]=op2;
-                expdiv[numdiv][0]=op1;
-                expdiv[numdiv][2]=newstr;
-            }
-            else expdiv[kkk][2]=newstr;
-            
-        }
-        else if (pp4!=-1)
-        {
-            op1=idxL[i].substr(0,pp4);
-            op2=idxL[i].substr(pp4+1,idxL[i].size()-pp4-1);
-            newstr=op1+"mod"+op2;
-            int kkk=-1;
-            for (int j=1;j<=numdiv;++j)
-                if ( (op2==expdiv[j][1]) && (op1==expdiv[j][0]) ) kkk=j;
-            if (kkk==-1)
-            {
-                ++numdiv;
-                expdiv[numdiv][1]=op2;
-                expdiv[numdiv][0]=op1;
-                expdiv[numdiv][3]=newstr;
-            }
-            else expdiv[kkk][3]=newstr;
-        }
-    }
-    
-    for (int i=1;i<=numdiv;++i)
-    {
-        replace(LHS,expdiv[i][0]+"//"+expdiv[i][1],expdiv[i][2]);
-        replace(LHS,expdiv[i][0]+"%"+expdiv[i][1],expdiv[i][3]);
-        replace(RHS,expdiv[i][0]+"//"+expdiv[i][1],expdiv[i][2]);
-        replace(RHS,expdiv[i][0]+"%"+expdiv[i][1],expdiv[i][3]);
-        replace(RHS,expdiv[i][0],expdiv[i][2]+"*"+expdiv[i][1]+"+"+expdiv[i][3]);
-    }
-
-    string ker3=LHS+"="+RHS;
-    
-    printf("%s\n",ker3.c_str());
-
-    return ker3;
+    return "d" + now_grad + nowindex + "=d" + now_grad + nowindex + "+d" + ker.substr(0, i) + "*(" + getgrad(i + 1, ker.size() - 2) + ")";
 }
 
 void grad()
@@ -434,7 +279,6 @@ void grad()
             {
                 now_pos = j;
                 final_ker = final_ker + getnow() + ";";
-                //printf("%s\n",final_ker.c_str());
             }
     }
 }
