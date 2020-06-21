@@ -8,16 +8,14 @@ void grad_case10(float (&dA)[8][8], float (&dB)[10][8]) {
       dB[i][j] = dB[i][j] + dA[i][j] * (((1)) * (3.0) / ((3.0) * (3.0)));
     }
   }
-  for (int iadd1=0; iadd1<10; ++iadd1) {
+  for (int i=0; i<8; ++i) {
     for (int j=0; j<8; ++j) {
-if (iadd1 - 1>=0 && iadd1 - 1<8)
-      dB[iadd1][j] = dB[iadd1][j] + dA[iadd1 - 1][j] * (((1)) * (3.0) / ((3.0) * (3.0)));
+      dB[i + 1][j] = dB[i + 1][j] + dA[i][j] * (((1)) * (3.0) / ((3.0) * (3.0)));
     }
   }
-  for (int iadd2=0; iadd2<10; ++iadd2) {
+  for (int i=0; i<8; ++i) {
     for (int j=0; j<8; ++j) {
-if (iadd2 - 2>=0 && iadd2 - 2<8)
-      dB[iadd2][j] = dB[iadd2][j] + dA[iadd2 - 2][j] * (((1)) * (3.0) / ((3.0) * (3.0)));
+      dB[i + 2][j] = dB[i + 2][j] + dA[i][j] * (((1)) * (3.0) / ((3.0) * (3.0)));
     }
   }
 }
