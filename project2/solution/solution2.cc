@@ -29,6 +29,8 @@ vector<string> vUsedIndex;				// for every S ::= LHS = RHS, get all index used i
 
 Case c;
 
+char curAlphabet = 'a', curNum = '0';		// used for Index replace
+
 Group handleP(Case c);
 Stmt handleS(string s);
 Expr handleRHS(string s);
@@ -146,12 +148,192 @@ Group handleP(Case c) {
 
 }
 
+struct IndicesInS {
+	string index;	// such as "i//16"
+	bool inLHS;
+	string replacedIndex = "";
+	int replacedLowerbound = 0;
+	int replacedUpperbound;
+};
+
+struct replaced {
+	vector<string> name;
+};
+
+map<string, replaced> Replaced;
+map<string, string> ReplaceResult;
+
 Stmt handleS(string s)
 {
+	Replaced.clear();
+	ReplaceResult.clear();
 	vUsedIndex.clear();
 	int equalloc = s.find('=');
+
 	string L = s.substr(0, equalloc);
 	string R = s.substr(equalloc + 1);
+	// processing operators within LHS's index
+	// scan all indexes in LHS, and process 
+	// examples:
+	// dA<2,16>[i//16,i%16]=dA<2,16>[i//16,i%16]+dB<32>[i]*(1);
+	// dB<10,8>[i+1,j]=dB<10,8>[i+1,j]+dA<8,8>[i,j]*(((1))*(3.0)/((3.0)*(3.0)));
+	// dB<2,16,7,7>[n,c,p+r,q+s]=dB<2,16,7,7>[n,c,p+r,q+s]+dA<2,8,5,5>[n,k,p,q]*(C<8,16,3,3>[k,c,r,s]);
+
+	bool operatorInLHS = false;
+	vector<IndicesInS> Indices;
+	// According to syntax, there should be only one '[' and ']' in LHS.
+	int i = L.find('['), lastSeparator = i;
+	while (true) {
+		if (L[i] == ',' || L[i] == ']') {
+			string nowIndex = L.substr(lastSeparator + 1, i - lastSeparator - 1);
+			bool foundInIndices = false;
+			for (int j = 0; j < (int)Indices.size(); j++) {
+				if (Indices[j].index == nowIndex) {
+					Indices[j].inLHS = true;
+					foundInIndices = true;
+					break;
+				}
+			}
+			if (!foundInIndices) {
+				IndicesInS tmp;
+				tmp.index = nowIndex;
+				tmp.inLHS = true;
+				Indices.push_back(tmp);
+			}
+			lastSeparator = i;
+			if (L[i] == ']') break;
+		}
+		i++;
+	}
+	int RLen = R.length();
+	for (i = R.find('['); i != R.npos && i < RLen; i++) {
+		while (i < RLen && R[i] != '[') i++;
+		if (i < RLen) {
+			lastSeparator = i;
+			while (true) {
+				if (R[i] == ',' || R[i] == ']') {
+					string nowIndex = R.substr(lastSeparator + 1, i - lastSeparator - 1);
+					bool foundInIndices = false;
+					for (int j = 0; j < (int)Indices.size(); j++) {
+						if (Indices[j].index == nowIndex) {
+							foundInIndices = true;
+							break;
+						}
+					}
+					if (!foundInIndices) {
+						IndicesInS tmp;
+						tmp.index = nowIndex;
+						tmp.inLHS = false;
+						Indices.push_back(tmp);
+					}
+					lastSeparator = i;
+					if (R[i] == ']') break;
+				}
+				i++;
+			}
+		}
+	}
+
+
+	// now all indices in IndicesInS.
+	// this "for" handles indexes in form Id op IntV.
+	//  replacedIndex will be named 'a~z' + '0~9'.
+	//  for Id op Id, select stmt may be used.
+	
+
+	for (i = 0; i < Indices.size(); i++) {
+		if (Indices[i].inLHS == false) continue;
+		string curId; char op = 0; int IntV = -1;
+		string &curIndex = Indices[i].index;
+		int curlen = curIndex.length();
+		for (int j = 0; j < curlen; j++) {
+			char cur = curIndex[j];
+			if (cur == '+' || cur == '/' || cur == '%') {
+				op = cur;
+				if (cur == '/') j++;
+				if (curIndex[j + 1] >= '0' && curIndex[j + 1] <= '9') {
+					IntV = atoi(curIndex.substr(j + 1).c_str());
+					curId = curIndex.substr(0, (cur == '/' ? j - 1: j));
+				}
+				break;
+			}
+		}
+		if (IntV != -1) {
+			Indices[i].replacedIndex = string(1, curAlphabet) + string(1, curNum);
+			if (++curAlphabet == ('z' + 1)) { curAlphabet = 'a'; curNum++; }
+			switch (op) {
+			case '+': {
+				Indices[i].replacedLowerbound = IntV;
+				Indices[i].replacedUpperbound = c.finalbound[curId.c_str()] + IntV;
+				auto tmpit = Replaced.find(curId);
+				if (tmpit != Replaced.end()) {
+					tmpit->second.name.push_back(Indices[i].replacedIndex + "-" + std::to_string(IntV));
+				}
+				else {
+					Replaced[curId] = replaced();
+					Replaced[curId].name.push_back(Indices[i].replacedIndex + "-" + std::to_string(IntV));
+				}
+				break; }
+			case '/': {
+				Indices[i].replacedUpperbound = c.finalbound[curId.c_str()] / IntV;
+				auto tmpit = Replaced.find(curId);
+				if (tmpit != Replaced.end()) {
+					tmpit->second.name.push_back(Indices[i].replacedIndex + "*" + std::to_string(IntV));
+				}
+				else {
+					Replaced[curId] = replaced();
+					Replaced[curId].name.push_back(Indices[i].replacedIndex + "*" + std::to_string(IntV));
+				}
+				break; }
+			case '%': {
+				Indices[i].replacedUpperbound = IntV;
+				auto tmpit = Replaced.find(curId);
+				if (tmpit != Replaced.end()) {
+					tmpit->second.name.push_back(Indices[i].replacedIndex);
+				}
+				else {
+					Replaced[curId] = replaced();
+					Replaced[curId].name.push_back(Indices[i].replacedIndex);
+				}
+				break; }
+			}
+
+		}
+		else Indices[i].replacedIndex = Indices[i].index;
+	}
+
+
+	for (auto it = Replaced.begin(); it != Replaced.end(); it++) {
+		string curName = it->first, curResult = it->second.name[0];
+		for (int j = 1; j < (int)(it->second.name.size()); j++) {
+			curResult += "+" + it->second.name[j];
+		}
+		ReplaceResult[curName] = curResult;
+	}
+
+	// now replace all indices in kernel string.
+	string newKernel = s;
+
+	for (i = 0; i < Indices.size(); i++) {
+		if (!Indices[i].inLHS || Indices[i].index == Indices[i].replacedIndex) continue;
+		int substrLoc;
+		Expr Domtemp = Dom::make(int_type, Indices[i].replacedLowerbound, Indices[i].replacedUpperbound);
+		Expr Indextemp = Index::make(int_type, Indices[i].replacedIndex.c_str(), Domtemp, IndexType::Spatial);
+		IndexList.insert(make_pair(Indices[i].replacedIndex, Indextemp));
+		while ((substrLoc = newKernel.find(Indices[i].index)) != newKernel.npos)
+			newKernel.replace(substrLoc, Indices[i].index.length(), Indices[i].replacedIndex);
+	}
+	for (auto it = ReplaceResult.begin(); it != ReplaceResult.end(); it++) {
+		int substrLoc;
+		while ((substrLoc = newKernel.find(it->first)) != newKernel.npos) {
+			if (isalnum(newKernel[substrLoc - 1]) || isalnum(newKernel[substrLoc + it->first.length()])) continue;			// not an index id
+			newKernel.replace(substrLoc, it->first.length(), "(" + it->second + ")");
+		}
+	}
+
+	equalloc = newKernel.find('=');
+	L = newKernel.substr(0, equalloc);
+	R = newKernel.substr(equalloc + 1);
 	Expr LHS = handleTRef(L);
 	Expr RHS = handleRHS(R);
 
@@ -270,9 +452,15 @@ Expr handleIdExpr(string s) {
 	Expr binaryLeft, binaryRight;		// the left/Right operating num of binary operators
 
 	char binaryOperator = 0;
+	int inBracket = 0;
 	Expr Id;						// for "IdExpr ::= Id"
-	for (size_t i = 0; i < s.length(); i++) {	// handle "+" firstly
-		if (s[i] == '+' || s[i] == '-') {
+	for (size_t i = 0; i < s.length(); i++) {	// handle "+" and "-" firstly
+		if (s[i] == '(')
+			inBracket++;
+		else if (s[i] == ')')
+			inBracket--;
+		else if (s[i] == '+' || s[i] == '-') {
+			if (inBracket) continue;
 			binaryOperator = s[i];
 			binaryLeft = handleIdExpr(s.substr(0, i));
 			binaryRight = handleIdExpr(s.substr(i + 1));
@@ -282,7 +470,12 @@ Expr handleIdExpr(string s) {
 
 	if (!binaryOperator) {
 		for (size_t i = 0; i < s.length(); i++) {
-			if (s[i] == '*' || (s[i] == '/' && s[i + 1] == '/') || s[i] == '%') {
+			if (s[i] == '(')
+				inBracket++;
+			else if (s[i] == ')')
+				inBracket--;
+			else if (s[i] == '*' || (s[i] == '/' && s[i + 1] == '/') || s[i] == '%') {
+				if (inBracket) continue;
 				binaryOperator = s[i];
 				binaryLeft = handleIdExpr(s.substr(0, i));
 				int tmp = (s[i] == '/' ? i + 2 : i + 1);
